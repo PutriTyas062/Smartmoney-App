@@ -2,6 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../../transaction/service_providers/transaction_service_providers.dart';
@@ -30,12 +37,253 @@ class _ReportDetailsScreenState extends ConsumerState<ReportDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Report Details'),
+        actions: [
+          ref.watch(transactionStreamProvider(uid)).when(
+                data: (transactions) => IconButton(
+                  icon: const Icon(Icons.download),
+                  onPressed: () => _showDownloadDialog(context, transactions),
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+        ],
       ),
       body: ref.watch(transactionStreamProvider(uid)).when(
             data: (transactions) => _buildReportContent(transactions),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(child: Text('Error: $error')),
           ),
+    );
+  }
+
+  void _showDownloadDialog(
+      BuildContext context, List<dynamic> allTransactions) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        int selectedYear = DateTime.now().year;
+        int selectedMonth = DateTime.now().month;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final years =
+                List.generate(5, (index) => DateTime.now().year - index);
+            final months = List.generate(12, (index) => index + 1);
+
+            return AlertDialog(
+              title: const Text('Download Report'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Year:'),
+                      DropdownButton<int>(
+                        value: selectedYear,
+                        items: years.map((int year) {
+                          return DropdownMenuItem<int>(
+                            value: year,
+                            child: Text(year.toString()),
+                          );
+                        }).toList(),
+                        onChanged: (int? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              selectedYear = newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Month:'),
+                      DropdownButton<int>(
+                        value: selectedMonth,
+                        items: months.map((int month) {
+                          return DropdownMenuItem<int>(
+                            value: month,
+                            child: Text(
+                                DateFormat.MMMM().format(DateTime(0, month))),
+                          );
+                        }).toList(),
+                        onChanged: (int? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              selectedMonth = newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  child: const Text('Download PDF'),
+                  onPressed: () {
+                    _generateAndShareReport(
+                      allTransactions,
+                      selectedYear,
+                      selectedMonth,
+                      'pdf',
+                    );
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  child: const Text('Download CSV'),
+                  onPressed: () {
+                    _generateAndShareReport(
+                      allTransactions,
+                      selectedYear,
+                      selectedMonth,
+                      'csv',
+                    );
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _generateAndShareReport(
+      List<dynamic> allTransactions, int year, int month, String format) async {
+    final transactions = allTransactions
+        .where((t) => t.date.year == year && t.date.month == month)
+        .toList();
+
+    if (transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No transactions found for the selected period.')),
+      );
+      return;
+    }
+
+    final monthName = DateFormat.MMMM().format(DateTime(0, month));
+    final fileName = 'Report-$monthName-$year';
+
+    if (format == 'csv') {
+      await _generateAndShareCsv(transactions, fileName);
+    } else {
+      await _generateAndSharePdf(transactions, fileName, monthName, year);
+    }
+  }
+
+  Future<void> _generateAndShareCsv(
+      List<dynamic> transactions, String fileName) async {
+    final List<List<dynamic>> rows = [];
+    rows.add(['Date', 'Category', 'Description', 'Amount', 'Type']);
+    for (var t in transactions) {
+      rows.add([
+        DateFormat.yMd().format(t.date),
+        t.categoryName,
+        t.description,
+        t.amount,
+        t.categoryType,
+      ]);
+    }
+
+    final csvData = const ListToCsvConverter().convert(rows);
+    final directory = await getTemporaryDirectory();
+    final path = '${directory.path}/$fileName.csv';
+    final file = File(path);
+    await file.writeAsString(csvData);
+
+    await Share.shareXFiles([XFile(path)], text: 'Financial Report');
+  }
+
+  Future<void> _generateAndSharePdf(List<dynamic> transactions, String fileName,
+      String monthName, int year) async {
+    final pdf = pw.Document();
+
+    final totalIncome = transactions
+        .where((t) => t.categoryType == 'Income')
+        .fold(0.0, (sum, item) => sum + item.amount);
+    final totalExpense = transactions
+        .where((t) => t.categoryType == 'Expense')
+        .fold(0.0, (sum, item) => sum + item.amount);
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Text('Financial Report - $monthName $year',
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                _buildSummaryBox(
+                    'Total Income',
+                    NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
+                        .format(totalIncome),
+                    PdfColors.green),
+                _buildSummaryBox(
+                    'Total Expense',
+                    NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
+                        .format(totalExpense),
+                    PdfColors.red),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Table.fromTextArray(
+              headers: ['Date', 'Category', 'Description', 'Amount', 'Type'],
+              data: transactions.map((t) {
+                return [
+                  DateFormat.yMd().format(t.date),
+                  t.categoryName,
+                  t.description,
+                  NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
+                      .format(t.amount),
+                  t.categoryType,
+                ];
+              }).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              cellAlignment: pw.Alignment.center,
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey300),
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.sharePdf(bytes: await pdf.save(), filename: '$fileName.pdf');
+  }
+
+  pw.Widget _buildSummaryBox(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: color, width: 2),
+        borderRadius: pw.BorderRadius.circular(5),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text(title, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 5),
+          pw.Text(value),
+        ],
+      ),
     );
   }
 
