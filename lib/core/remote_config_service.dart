@@ -43,7 +43,9 @@ class RemoteConfigService {
 
       // Store in SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      prefs.setString('googleSignInClientId', _googleSignInClientId ?? '');
+      if (_googleSignInClientId != null) {
+        prefs.setString('googleSignInClientId', _googleSignInClientId!);
+      }
 
       if (kDebugMode) {
         print(
