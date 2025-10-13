@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// Helper function to create IconData
+IconData _createIconData(int codePoint) {
+  return IconData(codePoint, fontFamily: 'MaterialIcons');
+}
+
 class Category {
   final String id;
   final String name;
@@ -41,22 +46,24 @@ class Category {
   }
 
   static Category fromMap(Map<String, dynamic> map, String id) {
+    final iconCode = map['icon'] as int;
     return Category(
       id: id,
       name: map['name'],
       type: map['type'],
-      icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
+      icon: _createIconData(iconCode),
       parentId: map['parentId'],
     );
   }
 
   // category from firestore
   factory Category.fromFirestore(Map<String, dynamic> data) {
+    final iconCode = data['icon'] as int;
     return Category(
       id: data['id'] as String,
       name: data['name'] as String,
       type: data['type'] as String,
-      icon: IconData(data['icon'] as int, fontFamily: 'MaterialIcons'),
+      icon: _createIconData(iconCode),
       parentId: data['parentId'] as String?,
     );
   }

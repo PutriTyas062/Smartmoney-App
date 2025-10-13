@@ -6,6 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/user_transaction_model.dart';
 
+// Helper function to create IconData
+IconData _createIconData(int codePoint) {
+  return IconData(codePoint, fontFamily: 'MaterialIcons');
+}
+
 /// **Transaction Stream Provider**
 final transactionStreamProvider =
     StreamProvider.family<List<UserTransaction>, String>((ref, uid) {
@@ -65,13 +70,13 @@ final transactionStreamProvider =
       return transactions.map((transaction) {
         final walletData = walletMap[transaction.walletId];
         final categoryData = categoryMap[transaction.categoryId];
+        final iconCode = categoryData?['icon'] as int? ?? 0;
         return UserTransaction(
           id: transaction.id,
           categoryId: transaction.categoryId,
           categoryName: categoryData?['name'] ?? 'Unknown Category',
           categoryType: categoryData?['type'] ?? 'Unknown Type',
-          categoryIcon:
-              IconData(categoryData?['icon'] ?? 0, fontFamily: 'MaterialIcons'),
+          categoryIcon: _createIconData(iconCode),
           description: transaction.description,
           amount: transaction.amount,
           date: transaction.date,
