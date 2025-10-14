@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Helper function to create IconData
-IconData _createIconData(int codePoint) {
-  return IconData(codePoint, fontFamily: 'MaterialIcons');
-}
-
 class Category {
   final String id;
   final String name;
@@ -51,7 +46,7 @@ class Category {
       id: id,
       name: map['name'],
       type: map['type'],
-      icon: _createIconData(iconCode),
+      icon: IconData(iconCode, fontFamily: 'MaterialIcons'),
       parentId: map['parentId'],
     );
   }
@@ -63,7 +58,7 @@ class Category {
       id: data['id'] as String,
       name: data['name'] as String,
       type: data['type'] as String,
-      icon: _createIconData(iconCode),
+      icon: IconData(iconCode, fontFamily: 'MaterialIcons'),
       parentId: data['parentId'] as String?,
     );
   }

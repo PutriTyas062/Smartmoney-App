@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Helper function to create IconData
-IconData _createIconData(int codePoint) {
-  return IconData(codePoint, fontFamily: 'MaterialIcons');
-}
-
 class Wallet {
   final String id;
   final String name;
@@ -52,7 +47,7 @@ class Wallet {
       name: map['name'],
       currency: map['currency'],
       balance: map['balance'],
-      icon: _createIconData(iconCode),
+      icon: IconData(iconCode, fontFamily: 'MaterialIcons'),
     );
   }
 
@@ -64,7 +59,7 @@ class Wallet {
       name: data['name'] as String,
       currency: data['currency'] as String,
       balance: data['balance'] as num,
-      icon: _createIconData(iconCode),
+      icon: IconData(iconCode, fontFamily: 'MaterialIcons'),
     );
   }
 }

@@ -1,14 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-
-// Imports Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'firebase_options.dart'; // File hasil generate flutterfire
-
-// Imports Project Lainnya
+import 'firebase_options.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/notification_service.dart';
 import 'core/remote_config_service.dart';
@@ -21,7 +17,6 @@ import 'core/theme_provider.dart';
 /// PENTING: Fungsi ini harus berada di level atas (top-level), tidak di dalam kelas.
 @pragma('vm:entry-point')
 Future<void> backgroundMessageHandler(RemoteMessage message) async {
-  // Pastikan Firebase diinisialisasi di dalam background handler ini juga.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (kDebugMode) {
     print("Handling a background message: ${message.messageId}");
@@ -34,12 +29,11 @@ void main() async {
   // Memastikan semua binding Flutter siap sebelum menjalankan kode.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Langkah 1: Inisialisasi Firebase. Ini WAJIB ada di awal.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Inisialisasi RemoteConfigService (sekarang aman dilakukan setelah init Firebase)
+  // Inisialisasi RemoteConfigService
   final remoteConfigService = RemoteConfigService();
   await remoteConfigService.initialize();
 
@@ -88,7 +82,7 @@ void main() async {
     await FirebaseAppCheck.instance.activate(
       // Gunakan debug provider saat development
       androidProvider: AndroidProvider.debug,
-      // PENTING: Untuk rilis produksi, ganti ke playIntegrity
+
       // androidProvider: AndroidProvider.playIntegrity,
     );
   }

@@ -1,11 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 
-// Helper function to create IconData
-IconData _createIconData(int codePoint) {
-  return IconData(codePoint, fontFamily: 'MaterialIcons');
-}
-
 class UserTransaction {
   final String id;
   final String categoryId;
@@ -42,7 +37,7 @@ class UserTransaction {
       categoryId: data['categoryId'] ?? '',
       categoryName: data['categoryName'] ?? 'Unknown Category',
       categoryType: data['categoryType'] ?? 'Unknown Type',
-      categoryIcon: _createIconData(iconCode),
+      categoryIcon: IconData(iconCode, fontFamily: 'MaterialIcons'),
       description: data['description'] ?? 'No Description',
       amount: data['amount']?.toDouble() ?? 0.0,
       date: (data['date'] as Timestamp).toDate(),

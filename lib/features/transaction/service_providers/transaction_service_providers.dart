@@ -6,11 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/user_transaction_model.dart';
 
-// Helper function to create IconData
-IconData _createIconData(int codePoint) {
-  return IconData(codePoint, fontFamily: 'MaterialIcons');
-}
-
 /// **Transaction Stream Provider**
 final transactionStreamProvider =
     StreamProvider.family<List<UserTransaction>, String>((ref, uid) {
@@ -76,7 +71,7 @@ final transactionStreamProvider =
           categoryId: transaction.categoryId,
           categoryName: categoryData?['name'] ?? 'Unknown Category',
           categoryType: categoryData?['type'] ?? 'Unknown Type',
-          categoryIcon: _createIconData(iconCode),
+          categoryIcon: IconData(iconCode, fontFamily: 'MaterialIcons'),
           description: transaction.description,
           amount: transaction.amount,
           date: transaction.date,
