@@ -61,64 +61,133 @@ class _ReportDetailsScreenState extends ConsumerState<ReportDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        int selectedYear = DateTime.now().year;
-        int selectedMonth = DateTime.now().month;
+        DateTime selectedDate = DateTime.now();
 
         return StatefulBuilder(
           builder: (context, setState) {
-            final years =
-                List.generate(5, (index) => DateTime.now().year - index);
-            final months = List.generate(12, (index) => index + 1);
-
             return AlertDialog(
               title: const Text('Download Report'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Year:'),
-                      DropdownButton<int>(
-                        value: selectedYear,
-                        items: years.map((int year) {
-                          return DropdownMenuItem<int>(
-                            value: year,
-                            child: Text(year.toString()),
+                  // Year Picker
+                  InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDialog<DateTime>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return _YearPickerDialog(
+                            initialDate: selectedDate,
                           );
-                        }).toList(),
-                        onChanged: (int? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedYear = newValue;
-                            });
-                          }
                         },
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = DateTime(
+                            picked.year,
+                            selectedDate.month,
+                          );
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ],
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Year:',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            selectedDate.year.toString(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Month:'),
-                      DropdownButton<int>(
-                        value: selectedMonth,
-                        items: months.map((int month) {
-                          return DropdownMenuItem<int>(
-                            value: month,
-                            child: Text(
-                                DateFormat.MMMM().format(DateTime(0, month))),
+                  const SizedBox(height: 16),
+                  // Month Picker
+                  InkWell(
+                    onTap: () async {
+                      final int? picked = await showDialog<int>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return _MonthPickerDialog(
+                            initialMonth: selectedDate.month,
                           );
-                        }).toList(),
-                        onChanged: (int? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedMonth = newValue;
-                            });
-                          }
                         },
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = DateTime(
+                            selectedDate.year,
+                            picked,
+                          );
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ],
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.event,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Month:',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            DateFormat.MMMM().format(selectedDate),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -132,8 +201,8 @@ class _ReportDetailsScreenState extends ConsumerState<ReportDetailsScreen> {
                   onPressed: () {
                     _generateAndShareReport(
                       allTransactions,
-                      selectedYear,
-                      selectedMonth,
+                      selectedDate.year,
+                      selectedDate.month,
                       'pdf',
                     );
                     Navigator.of(context).pop();
@@ -144,8 +213,8 @@ class _ReportDetailsScreenState extends ConsumerState<ReportDetailsScreen> {
                   onPressed: () {
                     _generateAndShareReport(
                       allTransactions,
-                      selectedYear,
-                      selectedMonth,
+                      selectedDate.year,
+                      selectedDate.month,
                       'csv',
                     );
                     Navigator.of(context).pop();
@@ -695,5 +764,251 @@ class _ReportDetailsScreenState extends ConsumerState<ReportDetailsScreen> {
         weeklyExpense[dayIndex] += transaction.amount;
       }
     }
+  }
+}
+
+// Custom Year Picker Dialog
+class _YearPickerDialog extends StatefulWidget {
+  final DateTime initialDate;
+
+  const _YearPickerDialog({
+    required this.initialDate,
+  });
+
+  @override
+  State<_YearPickerDialog> createState() => _YearPickerDialogState();
+}
+
+class _YearPickerDialogState extends State<_YearPickerDialog> {
+  late int _selectedYear;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedYear = widget.initialDate.year;
+
+    // Calculate initial scroll position to center selected year
+    final currentYear = DateTime.now().year;
+    final yearDiff = currentYear - _selectedYear;
+    _scrollController = ScrollController(
+      initialScrollOffset:
+          yearDiff * 56.0, // 56 is the height of each year item
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentYear = DateTime.now().year;
+    // Generate years from 1900 to 100 years in the future
+    final years = List.generate(
+      currentYear - 1900 + 100,
+      (index) => currentYear - index + 99,
+    );
+
+    return Dialog(
+      child: Container(
+        height: 400,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              'Select Year',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: years.length,
+                itemBuilder: (context, index) {
+                  final year = years[index];
+                  final isSelected = year == _selectedYear;
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedYear = year;
+                      });
+                    },
+                    child: Container(
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : null,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        year.toString(),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : null,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(
+                      DateTime(_selectedYear, widget.initialDate.month),
+                    );
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Custom Month Picker Dialog
+class _MonthPickerDialog extends StatefulWidget {
+  final int initialMonth;
+
+  const _MonthPickerDialog({
+    required this.initialMonth,
+  });
+
+  @override
+  State<_MonthPickerDialog> createState() => _MonthPickerDialogState();
+}
+
+class _MonthPickerDialogState extends State<_MonthPickerDialog> {
+  late int _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMonth = widget.initialMonth;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+
+    return Dialog(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Select Month',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 400,
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1.5,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: 12,
+                itemBuilder: (context, index) {
+                  final monthIndex = index + 1;
+                  final isSelected = monthIndex == _selectedMonth;
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedMonth = monthIndex;
+                      });
+                    },
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).dividerColor,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Text(
+                        months[index].substring(0, 3),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : null,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(_selectedMonth);
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
